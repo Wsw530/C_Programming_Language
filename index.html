@@ -1,0 +1,272 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>CrossDesk Web Client</title>
+
+    <!-- iOS Web App 配置 -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="CrossDesk" />
+
+    <!-- 图标配置 -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="120x120" href="icons/crossdesk-120-square.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/crossdesk-152-square.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/crossdesk-167-square.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/crossdesk-180-square.png">
+
+    <!-- PWA Manifest (可选，用于更好的Web App体验) -->
+    <link rel="manifest" href="manifest.json" />
+
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Connection settings overlay (shown when not connected) -->
+      <div id="connection-overlay" class="connection-overlay">
+        <div class="connection-panel">
+          <div class="connection-header">
+            <div class="connection-title-with-icon">
+              <img src="icons/crossdesk-180-circle.png" alt="CrossDesk" class="connection-icon" />
+              <h2>CrossDesk</h2>
+            </div>
+            <div
+              class="status-indicator"
+              id="connection-status-indicator"
+              style="display: none"
+            >
+              <div
+                id="connection-status-led"
+                class="status-led status-led-off"
+              ></div>
+            </div>
+          </div>
+          <form>
+            <div class="option">
+              <label for="transmission-id">远程设备 ID:</label>
+              <input id="transmission-id" type="text" value="" autocomplete="off" />
+            </div>
+            <div class="option">
+              <label for="transmission-pwd">密码:</label>
+              <input id="transmission-pwd" type="password" value="" autocomplete="current-password" />
+            </div>
+            <div class="actions">
+              <button id="connect" type="button" disabled>连接</button>
+              <button id="disconnect" type="button" style="display: none">断开连接</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Video display -->
+      <div id="media" style="display: none">
+        <!-- Video container, including draggable virtual mouse -->
+        <div id="video-container" class="video-container">
+          <video
+            id="video"
+            playsinline
+            webkit-playsinline
+            x5-video-player-type="h5"
+            x5-video-player-fullscreen="true"
+            muted
+          ></video>
+          <audio id="audio" autoplay></audio>
+
+          <!-- Connecting overlay -->
+          <div id="connecting-overlay" class="connecting-overlay" style="display: none">
+            <div class="connecting-message">
+              <div class="connecting-spinner"></div>
+              <span id="connecting-message-text">连接中...</span>
+            </div>
+          </div>
+
+          <!-- Connection settings overlay (shown when connected) -->
+          <div
+            id="connected-overlay"
+            class="connected-overlay"
+            style="display: none"
+          >
+            <div class="connected-panel" id="connected-panel">
+              <!-- Collapsed bar icon (shown in both minimized and expanded states) -->
+              <div class="panel-collapsed-bar" id="panel-collapsed-bar">
+                <img src="icons/crossdesk-180-circle.png" alt="控制" class="collapsed-bar-icon" />
+              </div>
+              <div class="panel-content">
+                <div class="connected-header">
+                  <div class="connected-controls-row">
+                    <div class="option compact">
+                      <label for="display-id">画面: </label>
+                      <select id="display-id" style="width: 110px; min-width: 110px;" disabled>
+                        <option value="" selected>候选画面 ID...</option>
+                      </select>
+                    </div>
+                    <!-- Mobile mouse control mode selector -->
+                    <div
+                      id="mobile-mode-selector"
+                      class="option compact"
+                      style="display: none"
+                    >
+                      <label for="mouse-control-mode">鼠标模式: </label>
+                      <select id="mouse-control-mode" style="width: 110px; min-width: 110px;">
+                        <option value="absolute">精准</option>
+                        <option value="relative">增量</option>
+                      </select>
+                    </div>
+                    <!-- Right side group: status and buttons -->
+                    <div class="controls-right-group">
+                      <!-- Virtual mouse restore button (shown when minimized) -->
+                      <button
+                        id="virtual-mouse-restore"
+                        class="virtual-mouse-restore-btn"
+                        style="display: none"
+                        title="显示虚拟鼠标"
+                      >
+                        🖱
+                      </button>
+                      <!-- Connection status -->
+                      <div class="connection-status-group">
+                        <span class="connection-status-label">连接状态</span>
+                        <div class="status-indicator">
+                          <div
+                            id="connected-status-led"
+                            class="status-led status-led-off"
+                          ></div>
+                        </div>
+                      </div>
+                      <!-- Disconnect button -->
+                      <button
+                        id="disconnect-connected"
+                        class="disconnect-btn"
+                      >
+                        断开连接
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Draggable virtual mouse: rectangular bar (left/middle/right) -->
+          <div id="virtual-mouse">
+            <div id="virtual-mouse-header" class="virtual-mouse-header">
+              <button id="keyboard-toggle-mouse" class="keyboard-toggle-btn">⌨</button>
+              <button id="virtual-mouse-minimize" class="virtual-mouse-minimize-btn">−</button>
+            </div>
+            <div class="virtual-mouse-row">
+              <button id="virtual-left-btn" class="virtual-mouse-btn">
+                左键
+              </button>
+              <div class="virtual-scroll-buttons">
+                <button id="virtual-scroll-up" class="virtual-scroll-btn">↑</button>
+                <button id="virtual-scroll-down" class="virtual-scroll-btn">↓</button>
+              </div>
+              <button id="virtual-right-btn" class="virtual-mouse-btn">
+                右键
+              </button>
+        </div>
+      </div>
+
+          <!-- Virtual keyboard -->
+          <div id="virtual-keyboard" class="virtual-keyboard" style="display: none">
+            <div id="keyboard-header" class="keyboard-header">
+              <button id="keyboard-close" class="keyboard-close-btn">×</button>
+            </div>
+            <div class="keyboard-layout">
+              <!-- Number row -->
+              <div class="keyboard-row">
+                <button class="keyboard-key" data-keycode="192">`</button>
+                <button class="keyboard-key" data-keycode="49">1</button>
+                <button class="keyboard-key" data-keycode="50">2</button>
+                <button class="keyboard-key" data-keycode="51">3</button>
+                <button class="keyboard-key" data-keycode="52">4</button>
+                <button class="keyboard-key" data-keycode="53">5</button>
+                <button class="keyboard-key" data-keycode="54">6</button>
+                <button class="keyboard-key" data-keycode="55">7</button>
+                <button class="keyboard-key" data-keycode="56">8</button>
+                <button class="keyboard-key" data-keycode="57">9</button>
+                <button class="keyboard-key" data-keycode="48">0</button>
+                <button class="keyboard-key" data-keycode="189">-</button>
+                <button class="keyboard-key" data-keycode="187">=</button>
+                <button class="keyboard-key keyboard-key-wide" data-keycode="8">⌫</button>
+              </div>
+              <!-- Letter row 1 -->
+              <div class="keyboard-row">
+                <button class="keyboard-key" data-keycode="81">Q</button>
+                <button class="keyboard-key" data-keycode="87">W</button>
+                <button class="keyboard-key" data-keycode="69">E</button>
+                <button class="keyboard-key" data-keycode="82">R</button>
+                <button class="keyboard-key" data-keycode="84">T</button>
+                <button class="keyboard-key" data-keycode="89">Y</button>
+                <button class="keyboard-key" data-keycode="85">U</button>
+                <button class="keyboard-key" data-keycode="73">I</button>
+                <button class="keyboard-key" data-keycode="79">O</button>
+                <button class="keyboard-key" data-keycode="80">P</button>
+                <button class="keyboard-key" data-keycode="219">[</button>
+                <button class="keyboard-key" data-keycode="221">]</button>
+                <button class="keyboard-key" data-keycode="220">\</button>
+              </div>
+              <!-- Letter row 2 -->
+              <div class="keyboard-row">
+                <button class="keyboard-key keyboard-key-wide" data-keycode="20">Caps</button>
+                <button class="keyboard-key" data-keycode="65">A</button>
+                <button class="keyboard-key" data-keycode="83">S</button>
+                <button class="keyboard-key" data-keycode="68">D</button>
+                <button class="keyboard-key" data-keycode="70">F</button>
+                <button class="keyboard-key" data-keycode="71">G</button>
+                <button class="keyboard-key" data-keycode="72">H</button>
+                <button class="keyboard-key" data-keycode="74">J</button>
+                <button class="keyboard-key" data-keycode="75">K</button>
+                <button class="keyboard-key" data-keycode="76">L</button>
+                <button class="keyboard-key" data-keycode="186">;</button>
+                <button class="keyboard-key" data-keycode="222">'</button>
+                <button class="keyboard-key keyboard-key-wide" data-keycode="13">↵</button>
+              </div>
+              <!-- Letter row 3 -->
+              <div class="keyboard-row">
+                <button class="keyboard-key keyboard-key-wide" data-keycode="16">Shift</button>
+                <button class="keyboard-key" data-keycode="90">Z</button>
+                <button class="keyboard-key" data-keycode="88">X</button>
+                <button class="keyboard-key" data-keycode="67">C</button>
+                <button class="keyboard-key" data-keycode="86">V</button>
+                <button class="keyboard-key" data-keycode="66">B</button>
+                <button class="keyboard-key" data-keycode="78">N</button>
+                <button class="keyboard-key" data-keycode="77">M</button>
+                <button class="keyboard-key" data-keycode="188">,</button>
+                <button class="keyboard-key" data-keycode="190">.</button>
+                <button class="keyboard-key" data-keycode="191">/</button>
+                <button class="keyboard-key keyboard-key-wide" data-keycode="16">Shift</button>
+              </div>
+              <!-- Function row -->
+              <div class="keyboard-row">
+                <button class="keyboard-key" data-keycode="17">Ctrl</button>
+                <button class="keyboard-key" data-keycode="18">Alt</button>
+                <button class="keyboard-key keyboard-key-space" data-keycode="32">Space</button>
+                <button class="keyboard-key" data-keycode="18">Alt</button>
+                <button class="keyboard-key" data-keycode="17">Ctrl</button>
+                <button class="keyboard-key" data-keycode="37">←</button>
+                <button class="keyboard-key" data-keycode="38">↑</button>
+                <button class="keyboard-key" data-keycode="40">↓</button>
+                <button class="keyboard-key" data-keycode="39">→</button>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <script src="control.js"></script>
+    <script src="web_client.js"></script>
+  </body>
+</html>
